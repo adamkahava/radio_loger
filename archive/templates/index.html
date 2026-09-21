@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1">
+
+<title>Radio Archive</title>
+
+<link rel="stylesheet"
+      href="/static/style.css">
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <header>
+
+        <div>
+            <h1>Radio Archive</h1>
+            <p>Broadcast Recording System</p>
+        </div>
+
+        <div class="live">
+            ● Recording
+        </div>
+
+    </header>
+
+
+    <section class="search">
+
+        <form method="GET">
+
+            <div>
+
+                <label>Station</label>
+
+                <select name="station">
+
+                    {% for id, name in stations.items() %}
+
+                    <option
+                        value="{{ id }}"
+                        {% if id == selected_station %}
+                        selected
+                        {% endif %}
+                    >
+                        {{ name }}
+                    </option>
+
+                    {% endfor %}
+
+                </select>
+
+            </div>
+
+
+            <div>
+
+                <label>Date</label>
+
+                <input
+                    type="date"
+                    name="date"
+                    value="{{ selected_date }}"
+                >
+
+            </div>
+
+
+            <button type="submit">
+                Find Recordings
+            </button>
+
+        </form>
+
+    </section>
+
+
+    <section class="summary">
+
+        <h2>
+            {{ stations[selected_station] }}
+        </h2>
+
+        <p>
+            {{ selected_date }}
+            ·
+            {{ recordings|length }} recordings
+        </p>
+
+    </section>
+
+
+    <section class="player-card">
+
+        <div id="nowPlaying">
+
+            <strong>
+                Select a recording
+            </strong>
+
+            <span>
+                Click Play to start preview
+            </span>
+
+        </div>
+
+        <audio
+            id="player"
+            controls
+            preload="metadata">
+        </audio>
+
+
+        <div class="player-buttons">
+
+            <button onclick="skip(-10)">
+                −10 sec
+            </button>
+
+            <button onclick="skip(10)">
+                +10 sec
+            </button>
+
+        </div>
+
+    </section>
+
+
+    <section class="recordings">
+
+        <div class="table-header">
+
+            <span>Time</span>
+            <span>Recording</span>
+            <span>Actions</span>
+
+        </div>
+
+
+        {% for recording in recordings %}
+
+        <div class="recording-row">
+
+            <div class="time">
+                {{ recording.time }}
+            </div>
+
+            <div>
+
+                <strong>
+                    {{ recording.station_name }}
+                </strong>
+
+                <small>
+                    {{ recording.filename }}
+                </small>
+
+            </div>
+
+            <div class="actions">
+
+                <button
+                    onclick="playRecording(
+                        '{{ recording.station }}',
+                        '{{ recording.filename }}',
+                        '{{ recording.time }}'
+                    )">
+
+                    ▶ Play
+
+                </button>
+
+                <a
+                    href="/download/{{ recording.station }}/{{ recording.filename }}">
+
+                    Download
+
+                </a>
+
+            </div>
+
+        </div>
+
+        {% else %}
+
+        <div class="empty">
+
+            No recordings found for this date.
+
+        </div>
+
+        {% endfor %}
+
+    </section>
+
+</div>
+
+
+<script>
+
+const player =
+    document.getElementById("player");
+
+const nowPlaying =
+    document.getElementById("nowPlaying");
+
+
+function playRecording(
+    station,
+    filename,
+    time
+) {
+
+    player.src =
+        `/audio/${station}/${filename}`;
+
+    player.play();
+
+    nowPlaying.innerHTML =
+        `<strong>${time}</strong>
+         <span>${filename}</span>`;
+}
+
+
+function skip(seconds) {
+
+    if (!player.src)
+        return;
+
+    player.currentTime =
+        Math.max(
+            0,
+            player.currentTime + seconds
+        );
+}
+
+</script>
+
+</body>
+</html>
