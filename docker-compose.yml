@@ -1,0 +1,223 @@
+services:
+
+  # ==========================================================
+  # EAST AFRICA RADIO
+  # ==========================================================
+
+  east-africa-radio:
+    build:
+      context: ./recorder
+
+    container_name: east-africa-radio
+    restart: unless-stopped
+
+    environment:
+      TZ: ${TZ}
+      STATION: east-africa-radio
+      STREAM_URL: ${EAST_AFRICA_URL}
+      SEGMENT_SECONDS: ${SEGMENT_SECONDS}
+      AUDIO_MODE: ${AUDIO_MODE}
+      MP3_BITRATE: ${MP3_BITRATE}
+      RECORDINGS_ROOT: /recordings
+
+    volumes:
+      - ${RECORDINGS_PATH:-./recordings}/east-africa-radio:/recordings/east-africa-radio
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/usr/local/bin/healthcheck.sh"
+        ]
+      interval: 5m
+      timeout: 20s
+      retries: 3
+      start_period: 15m
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+
+  # ==========================================================
+  # CAPITAL RADIO
+  # ==========================================================
+
+  capital-radio:
+    build:
+      context: ./recorder
+
+    container_name: capital-radio
+    restart: unless-stopped
+
+    environment:
+      TZ: ${TZ}
+      STATION: capital-radio
+      STREAM_URL: ${CAPITAL_RADIO_URL}
+      SEGMENT_SECONDS: ${SEGMENT_SECONDS}
+      AUDIO_MODE: ${AUDIO_MODE}
+      MP3_BITRATE: ${MP3_BITRATE}
+      RECORDINGS_ROOT: /recordings
+
+    volumes:
+      - ${RECORDINGS_PATH:-./recordings}/capital-radio:/recordings/capital-radio
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/usr/local/bin/healthcheck.sh"
+        ]
+      interval: 5m
+      timeout: 20s
+      retries: 3
+      start_period: 15m
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+
+  # ==========================================================
+  # RADIO ONE
+  # ==========================================================
+
+  radio-one:
+    build:
+      context: ./recorder
+
+    container_name: radio-one
+    restart: unless-stopped
+
+    environment:
+      TZ: ${TZ}
+      STATION: radio-one
+      STREAM_URL: ${RADIO_ONE_URL}
+      SEGMENT_SECONDS: ${SEGMENT_SECONDS}
+      AUDIO_MODE: ${AUDIO_MODE}
+      MP3_BITRATE: ${MP3_BITRATE}
+      RECORDINGS_ROOT: /recordings
+
+    volumes:
+      - ${RECORDINGS_PATH:-./recordings}/radio-one:/recordings/radio-one
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/usr/local/bin/healthcheck.sh"
+        ]
+      interval: 5m
+      timeout: 20s
+      retries: 3
+      start_period: 15m
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+
+  # ==========================================================
+  # RETENTION CLEANER
+  # ==========================================================
+
+  retention-cleaner:
+    image: alpine:3.22
+
+    container_name: radio-retention-cleaner
+    restart: unless-stopped
+
+    environment:
+      TZ: ${TZ}
+      RETENTION_DAYS: ${RETENTION_DAYS}
+
+    volumes:
+      - ${RECORDINGS_PATH:-./recordings}:/recordings
+
+    command:
+      - /bin/sh
+      - -c
+      - |
+        while true
+        do
+          echo "[$$(date)] Starting retention cleanup"
+
+          find /recordings \
+            -type f \
+            -name "*.mp3" \
+            -mtime +$${RETENTION_DAYS} \
+            -print \
+            -exec sh -c 'rm -f "$1" "$${1%.mp3}.json"' _ {} \;
+
+          echo "[$$(date)] Cleanup completed"
+
+          sleep 86400
+        done
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+
+  # ==========================================================
+  # RADIO ARCHIVE WEB APPLICATION
+  # ==========================================================
+
+  radio-archive:
+    build:
+      context: ./archive
+
+    container_name: radio-archive
+    restart: unless-stopped
+
+    ports:
+      - "${ARCHIVE_BIND}:${ARCHIVE_PORT}:8080"
+
+    environment:
+      TZ: ${TZ}
+      SECRET_KEY: ${SECRET_KEY}
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
+      OPERATOR_USERNAME: ${OPERATOR_USERNAME}
+      OPERATOR_PASSWORD_HASH: ${OPERATOR_PASSWORD_HASH}
+      OPERATOR_DOWNLOADS: ${OPERATOR_DOWNLOADS}
+      RETENTION_DAYS: ${RETENTION_DAYS}
+      RADIO_ONE_URL: ${RADIO_ONE_URL}
+      CAPITAL_RADIO_URL: ${CAPITAL_RADIO_URL}
+      EAST_AFRICA_URL: ${EAST_AFRICA_URL}
+      RECORDINGS_ROOT: /recordings
+      STATE_DIR: /state
+
+    volumes:
+      - ${RECORDINGS_PATH:-./recordings}:/recordings:ro
+      - archive-state:/state
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-q",
+          "--spider",
+          "http://127.0.0.1:8080/healthz"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+volumes:
+  archive-state:

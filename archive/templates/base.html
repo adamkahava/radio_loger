@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Radio Archive{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% block scripts %}{% endblock %}
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+<div class="container">
+  <header class="site-header">
+    <div><a class="brand" href="/">RADIO ARCHIVE</a><p>Broadcast Recording System</p></div>
+    <nav aria-label="Account">
+      {% if is_admin %}<a href="/admin">System health</a>{% endif %}
+      {% block navigation %}{% endblock %}
+      <form method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button>Sign out</button></form>
+    </nav>
+  </header>
+  <main id="main">{% block content %}{% endblock %}</main>
+  <footer>All broadcast times are Tanzania time (24-hour clock).</footer>
+</div>
+</body>
+</html>

@@ -1,248 +1,54 @@
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-
-<meta charset="UTF-8">
-
-<meta name="viewport"
-      content="width=device-width, initial-scale=1">
-
-<title>Radio Archive</title>
-
-<link rel="stylesheet"
-      href="/static/style.css">
-
-</head>
-
-<body>
-
-<div class="container">
-
-    <header>
-
-        <div>
-            <h1>Radio Archive</h1>
-            <p>Broadcast Recording System</p>
-        </div>
-
-        <div class="live">
-            ● Recording
-        </div>
-
-    </header>
-
-
-    <section class="search">
-
-        <form method="GET">
-
-            <div>
-
-                <label>Station</label>
-
-                <select name="station">
-
-                    {% for id, name in stations.items() %}
-
-                    <option
-                        value="{{ id }}"
-                        {% if id == selected_station %}
-                        selected
-                        {% endif %}
-                    >
-                        {{ name }}
-                    </option>
-
-                    {% endfor %}
-
-                </select>
-
-            </div>
-
-
-            <div>
-
-                <label>Date</label>
-
-                <input
-                    type="date"
-                    name="date"
-                    value="{{ selected_date }}"
-                >
-
-            </div>
-
-
-            <button type="submit">
-                Find Recordings
-            </button>
-
-        </form>
-
-    </section>
-
-
-    <section class="summary">
-
-        <h2>
-            {{ stations[selected_station] }}
-        </h2>
-
-        <p>
-            {{ selected_date }}
-            ·
-            {{ recordings|length }} recordings
-        </p>
-
-    </section>
-
-
-    <section class="player-card">
-
-        <div id="nowPlaying">
-
-            <strong>
-                Select a recording
-            </strong>
-
-            <span>
-                Click Play to start preview
-            </span>
-
-        </div>
-
-        <audio
-            id="player"
-            controls
-            preload="metadata">
-        </audio>
-
-
-        <div class="player-buttons">
-
-            <button onclick="skip(-10)">
-                −10 sec
-            </button>
-
-            <button onclick="skip(10)">
-                +10 sec
-            </button>
-
-        </div>
-
-    </section>
-
-
-    <section class="recordings">
-
-        <div class="table-header">
-
-            <span>Time</span>
-            <span>Recording</span>
-            <span>Actions</span>
-
-        </div>
-
-
-        {% for recording in recordings %}
-
-        <div class="recording-row">
-
-            <div class="time">
-                {{ recording.time }}
-            </div>
-
-            <div>
-
-                <strong>
-                    {{ recording.station_name }}
-                </strong>
-
-                <small>
-                    {{ recording.filename }}
-                </small>
-
-            </div>
-
-            <div class="actions">
-
-                <button
-                    onclick="playRecording(
-                        '{{ recording.station }}',
-                        '{{ recording.filename }}',
-                        '{{ recording.time }}'
-                    )">
-
-                    ▶ Play
-
-                </button>
-
-                <a
-                    href="/download/{{ recording.station }}/{{ recording.filename }}">
-
-                    Download
-
-                </a>
-
-            </div>
-
-        </div>
-
-        {% else %}
-
-        <div class="empty">
-
-            No recordings found for this date.
-
-        </div>
-
-        {% endfor %}
-
-    </section>
-
+{% extends "base.html" %}
+{% block scripts %}<script src="{{ url_for('static', filename='app.js') }}" defer></script>{% endblock %}
+{% block content %}
+<div id="archive" data-today="{{ today }}" data-yesterday="{{ yesterday }}" data-initial='{{ initial|tojson }}' data-download="{{ 'true' if can_download else 'false' }}">
+  <section class="system-strip" aria-labelledby="system-title">
+    <h2 id="system-title">System status</h2>
+    <div id="stations" class="status-grid" aria-live="polite"><p>Checking recording status...</p></div>
+  </section>
+  {% if initial_error %}<p class="notice error" role="alert">{{ initial_error }}</p>{% endif %}
+  <details id="finder" class="panel finder" open>
+    <summary>Find a Previous Broadcast</summary>
+    <p class="intro">Choose a station, day and time. Then press <strong>Find &amp; Play.</strong></p>
+    <form id="search">
+      <fieldset><legend>1. Which station?</legend>
+        <div class="station-choices">{% for id, name in stations.items() %}
+          <label class="station-choice"><input type="radio" name="station" value="{{ id }}" {% if loop.first %}checked{% endif %}><span>{{ name }}</span><span class="selected-note">Selected</span></label>
+        {% endfor %}</div>
+      </fieldset>
+      <div class="day-time">
+        <fieldset><legend>2. Which day?</legend>
+          <div class="date-choices"><button id="today" type="button" aria-pressed="true">Today</button><button id="yesterday" type="button" aria-pressed="false">Yesterday</button><button id="choose-date" type="button" aria-pressed="false" aria-controls="custom-date">Choose date</button></div>
+          <div id="custom-date" hidden><label for="date">Choose a day from the calendar</label><input id="date" type="date" value="{{ today }}" required></div>
+          <p id="selected-date" class="selected-date"></p>
+        </fieldset>
+        <fieldset><legend>3. What time?</legend>
+          <div class="time-picker"><div><label for="hour">Hour</label><select id="hour" required><option value="">Hour</option>{% for h in range(24) %}<option value="{{ '%02d'|format(h) }}">{{ '%02d'|format(h) }}</option>{% endfor %}</select></div><span aria-hidden="true">:</span><div><label for="minute">Minute</label><select id="minute">{% for m in range(60) %}<option value="{{ '%02d'|format(m) }}">{{ '%02d'|format(m) }}</option>{% endfor %}</select></div></div>
+          <p class="hint">24-hour time &middot; 14:35 means 2:35 PM</p>
+        </fieldset>
+      </div>
+      <button id="go" class="primary find-play" type="submit">&#9654; FIND &amp; PLAY</button>
+    </form>
+    <p class="hint">Looking for something just broadcast? It may take up to 10 minutes to appear here.</p>
+  </details>
+  <section id="message" class="notice" role="status" aria-live="polite" tabindex="-1" hidden></section>
+  <section id="player" class="panel player" aria-labelledby="now-playing" hidden>
+    <div class="player-heading"><div><h2 id="now-playing" tabindex="-1"></h2><p id="player-date"></p></div><button id="another-time">Go to another time</button></div>
+    <p id="play-state" class="play-state" role="status">Ready to play</p>
+    <p class="broadcast-clock">Broadcast time <output id="broadcast-time">--:--</output></p>
+    <audio id="audio" preload="metadata"></audio>
+    <div class="transport" aria-label="Playback controls"><button data-skip="-30">&larr; 30 seconds</button><button data-skip="-10">&larr; 10 seconds</button><button id="play-pause" class="primary play-pause">&#9654; PLAY</button><button data-skip="10">10 seconds &rarr;</button><button data-skip="30">30 seconds &rarr;</button></div>
+    <label for="seek">Move through this broadcast</label><input id="seek" type="range" min="0" max="600" step="1" value="0">
+    <div class="seek-labels"><span id="seek-start"></span><output id="position">00:00</output><span id="seek-end"></span></div>
+    <div class="player-options"><label for="volume">Volume</label><input id="volume" type="range" min="0" max="1" step="0.05" value="1"><a id="player-download" {% if not can_download %}hidden{% endif %}>Download Recording</a></div>
+    <div class="adjacent"><button id="previous">&larr; PREVIOUS 10 MINUTES</button><button id="next">NEXT 10 MINUTES &rarr;</button></div>
+    <p id="player-message" role="status" aria-live="polite"></p>
+    <p class="hint">The next part plays automatically.</p>
+    <details class="playback-options"><summary>Playback options</summary><label><input id="continuous" type="checkbox" checked> Continuous playback</label><label for="speed">Playback speed</label><select id="speed"><option value="0.75">0.75x</option><option value="1" selected>Normal</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2x</option></select><a id="bookmark-link">Link to this broadcast</a></details>
+    {% if is_admin %}<details><summary>Recording information</summary><p id="file-detail" class="file-detail"></p></details>{% endif %}
+  </section>
+  <section class="today-section" aria-labelledby="today-title"><h2 id="today-title">Today's Recordings</h2><p>Choose a station to see the available times.</p><div class="today-stations">{% for id, name in stations.items() %}<button data-today-station="{{ id }}"><strong>{{ name }}</strong><span id="today-status-{{ id }}">Checking status...</span><span class="link-label">See today's times &rarr;</span></button>{% endfor %}</div></section>
+  <details id="more-options" class="panel"><summary>More Options</summary><p>Listen to everything between two times on one day.</p><form id="range-search"><div class="range-fields"><div><label for="range-station">Station</label><select id="range-station">{% for id, name in stations.items() %}<option value="{{ id }}">{{ name }}</option>{% endfor %}</select></div><div><label for="range-date">Date</label><input id="range-date" type="date" value="{{ today }}" required></div><div><label for="range-start">Start time</label><input id="range-start" type="time" step="60" required></div><div><label for="range-end">End time</label><input id="range-end" type="time" step="60" required></div></div><button type="submit">Find Recordings</button></form><div id="range-results" role="status"></div></details>
+  <section id="timeline" class="panel" aria-labelledby="timeline-title" hidden><h2 id="timeline-title" tabindex="-1"></h2><div id="timeline-groups"></div></section>
 </div>
-
-
-<script>
-
-const player =
-    document.getElementById("player");
-
-const nowPlaying =
-    document.getElementById("nowPlaying");
-
-
-function playRecording(
-    station,
-    filename,
-    time
-) {
-
-    player.src =
-        `/audio/${station}/${filename}`;
-
-    player.play();
-
-    nowPlaying.innerHTML =
-        `<strong>${time}</strong>
-         <span>${filename}</span>`;
-}
-
-
-function skip(seconds) {
-
-    if (!player.src)
-        return;
-
-    player.currentTime =
-        Math.max(
-            0,
-            player.currentTime + seconds
-        );
-}
-
-</script>
-
-</body>
-</html>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}System Health - Radio Archive{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}
+{% block navigation %}<a href="/">Find a broadcast</a>{% endblock %}
+{% block content %}
+<h1>System Health</h1><p>Read-only diagnostics. Recording settings are managed on the server.</p>
+<p id="admin-message" role="status"></p>
+<section id="admin-stations" class="admin-grid" aria-label="Recorder health"></section>
+<section class="panel"><h2>Storage</h2><div id="admin-storage"></div></section>
+<section class="panel"><h2>Today</h2><div id="admin-counts"></div></section>
+<section class="panel"><h2>Recording gaps</h2><form id="gap-search"><div class="range-fields"><div><label for="gap-station">Station</label><select id="gap-station">{% for id, name in stations.items() %}<option value="{{ id }}">{{ name }}</option>{% endfor %}</select></div><div><label for="gap-date">Date</label><input id="gap-date" type="date" value="{{ today }}" required></div></div><button>Check date</button></form><div id="gap-results" role="status"></div></section>
+<section class="panel"><h2>Recording system</h2><div id="admin-system"></div></section>
+{% endblock %}
