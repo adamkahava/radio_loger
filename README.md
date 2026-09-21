@@ -104,7 +104,7 @@ Configure `.env` URLs, storage and retention before starting. The `.env` file is
 
 ## Access and TLS
 
-By default, the archive binds to **127.0.0.1:8080** on the host and sets Secure cookies. Place an existing HTTPS reverse proxy in front of it. Example Nginx server (replace hostname and certificate paths):
+By default, the archive binds to **127.0.0.1:8096** on the host and sets Secure cookies. Place an existing HTTPS reverse proxy in front of it. Example Nginx server (replace hostname and certificate paths):
 
 ```nginx
 server {
@@ -113,7 +113,7 @@ server {
     ssl_certificate /etc/letsencrypt/live/radio.example.org/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/radio.example.org/privkey.pem;
     location / {
-        proxy_pass http://127.0.0.1:8080;
+        proxy_pass http://127.0.0.1:8096;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-Proto https;
         proxy_read_timeout 60s;
@@ -130,10 +130,10 @@ For an **SSH-tunnel-only HTTP check**, set `COOKIE_SECURE=false` in `.env`, recr
 # Server, after editing .env:
 docker compose up -d --no-deps --force-recreate radio-archive
 # Workstation:
-ssh -L 8080:127.0.0.1:8080 operator@YOUR_SERVER
+ssh -L 8096:127.0.0.1:8096 operator@YOUR_SERVER
 ```
 
-Open `http://127.0.0.1:8080`. Restore `COOKIE_SECURE=true` before production TLS access. Secure cookies intentionally do not support ordinary HTTP sign-in. Keep `ARCHIVE_BIND=127.0.0.1` unless you have a specific protected network design.
+Open `http://127.0.0.1:8096`. Restore `COOKIE_SECURE=true` before production TLS access. Secure cookies intentionally do not support ordinary HTTP sign-in. Keep `ARCHIVE_BIND=127.0.0.1` unless you have a specific protected network design.
 
 ## Operator workflow
 
@@ -157,7 +157,7 @@ docker compose logs -f --tail=100 radio-one
 docker compose logs --since=1h capital-radio east-africa-radio
 docker compose logs --since=24h radio-retention-cleaner
 docker compose logs --tail=100 radio-archive
-curl --fail http://127.0.0.1:8080/healthz
+curl --fail http://127.0.0.1:8096/healthz
 ```
 
 Recorder health requires supervisor and FFmpeg PIDs alive, a fresh supervisor heartbeat, growth in the last 15 minutes, and recently FFprobe-validated MP3 audio. The web dashboard is stricter for “Recording”: fresh heartbeat, reported growth, recent validation and an actual nonempty recent staging file. Activity up to 15 minutes old is Warning; older/missing activity is Offline. It never infers recorder health from web uptime. Docker alone does not restart an unhealthy container: the recorder watchdog supplies recovery.

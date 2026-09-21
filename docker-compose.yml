@@ -195,6 +195,7 @@ services:
       EAST_AFRICA_URL: ${EAST_AFRICA_URL}
       RECORDINGS_ROOT: /recordings
       STATE_DIR: /state
+      USERS_FILE: /state/users.json
 
     volumes:
       - ${RECORDINGS_PATH:-./recordings}:/recordings:ro

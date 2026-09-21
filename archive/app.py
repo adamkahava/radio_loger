@@ -7,6 +7,7 @@ from pathlib import Path
 import secrets
 import sqlite3
 import time
+import json
 
 from flask import Flask, abort, g, jsonify, redirect, render_template, request, send_file, session, url_for
 from werkzeug.exceptions import HTTPException
@@ -29,6 +30,7 @@ def create_app(config=None):
                      "east-africa-radio": os.getenv("EAST_AFRICA_URL", "https://eatv.radioca.st/stream")},
         RECORDINGS_ROOT=os.getenv("RECORDINGS_ROOT", "/recordings"),
         STATE_DIR=os.getenv("STATE_DIR", "/state"),
+        USERS_FILE=os.getenv("USERS_FILE", "/state/users.json"),
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SECURE=os.getenv("COOKIE_SECURE", "true").lower() == "true",
         SESSION_COOKIE_SAMESITE="Strict",
@@ -51,6 +53,23 @@ def create_app(config=None):
             raise RuntimeError("Administrator and operator usernames must be different")
         fingerprint = hashlib.sha256((app.config["OPERATOR_USERNAME"] + operator_hash).encode()).hexdigest()
         accounts["operator"] = (app.config["OPERATOR_USERNAME"], operator_hash, fingerprint)
+    users_file = Path(app.config["USERS_FILE"])
+    if users_file.is_file():
+        try:
+            entries = json.loads(users_file.read_text(encoding="utf-8"))
+            if not isinstance(entries, list):
+                raise ValueError
+            for entry in entries:
+                username = entry["username"]
+                role = entry["role"]
+                hashed = entry["password_hash"]
+                if (role not in ("admin", "operator") or not isinstance(username, str)
+                        or not isinstance(hashed, str) or username in {a[0] for a in accounts.values()}):
+                    raise ValueError
+                fingerprint = hashlib.sha256((username + hashed).encode()).hexdigest()
+                accounts[f"file:{username}"] = (username, hashed, fingerprint)
+        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
+            raise RuntimeError("Invalid USERS_FILE") from error
     dummy_hash = generate_password_hash(secrets.token_hex(24))
     catalog = Catalog(app.config["RECORDINGS_ROOT"])
     app.extensions["catalog"] = catalog
